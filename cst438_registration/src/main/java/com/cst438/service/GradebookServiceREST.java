@@ -20,30 +20,42 @@ import com.cst438.domain.EnrollmentRepository;
 @ConditionalOnProperty(prefix = "gradebook", name = "service", havingValue = "rest")
 @RestController
 public class GradebookServiceREST implements GradebookService {
+    @Autowired
+    EnrollmentRepository enrollmentRepository;
 
-	private RestTemplate restTemplate = new RestTemplate();
+    private RestTemplate restTemplate = new RestTemplate();
 
-	@Value("${gradebook.url}")
-	private static String gradebook_url;
+    @Value("${gradebook.url}")
+    private String gradebook_url;
 
-	@Override
-	public void enrollStudent(String student_email, String student_name, int course_id) {
-		System.out.println("Start Message "+ student_email +" " + course_id); 
-	
-		// TODO use RestTemplate to send message to gradebook service
-		
-	}
-	
-	@Autowired
-	EnrollmentRepository enrollmentRepository;
-	/*
-	 * endpoint for final course grades
-	 */
-	@PutMapping("/course/{course_id}")
-	@Transactional
-	public void updateCourseGrades( @RequestBody FinalGradeDTO[] grades, @PathVariable("course_id") int course_id) {
-		System.out.println("Grades received "+grades.length);
-		
-		//TODO update grades in enrollment records with grades received from gradebook service
-	}
+    @Override
+    public void enrollStudent(String student_email, String student_name, int course_id) {
+        System.out.println("Start Message " + student_email + " " + course_id);
+
+        EnrollmentDTO enrollmentDTO = new EnrollmentDTO(0, student_email, student_name, course_id);
+
+        EnrollmentDTO response = restTemplate.postForObject(gradebook_url, enrollmentDTO, EnrollmentDTO.class);
+
+        if (response != null) {
+            System.out.println("Enrollment successful for student: " + student_email + " in course: " + course_id);
+        } else {
+            System.out.println("Enrollment failed for student: " + student_email + " in course: " + course_id);
+        }
+    }
+
+    @PutMapping("/course/{course_id}")
+    @Transactional
+    public void updateCourseGrades(@RequestBody FinalGradeDTO[] grades, @PathVariable("course_id") int course_id) {
+        System.out.println("Grades received " + grades.length);
+
+        for (FinalGradeDTO grade : grades) {
+            Enrollment enrollment = enrollmentRepository.findByStudentEmailAndCourseId(grade.studentEmail(), course_id);
+            if (enrollment != null) {
+                enrollment.setCourseGrade(grade.grade());
+                enrollmentRepository.save(enrollment);
+            } else {
+                System.out.println("Enrollment record not found for student: " + grade.studentEmail() + " in course: " + course_id);
+            }
+        }
+    }
 }
