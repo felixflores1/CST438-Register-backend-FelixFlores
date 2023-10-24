@@ -29,11 +29,19 @@ public class GradebookServiceMQ implements GradebookService {
 
 	// send message to grade book service about new student enrollment in course
 	@Override
-	public void enrollStudent(String student_email, String student_name, int course_id) {
-		System.out.println("Start Message "+ student_email +" " + course_id); 
-		// create EnrollmentDTO, convert to JSON string and send to gradebookQueue
-		// TODO
-	}
+    public void enrollStudent(String student_email, String student_name, int course_id) {
+        System.out.println("Start Message " + student_email + " " + course_id);
+
+        EnrollmentDTO enrollmentDTO = new EnrollmentDTO(0, student_email, student_name, course_id);
+
+        EnrollmentDTO response = restTemplate.postForObject(gradebook_url, enrollmentDTO, EnrollmentDTO.class);
+
+        if (response != null) {
+            System.out.println("Enrollment successful for student: " + student_email + " in course: " + course_id);
+        } else {
+            System.out.println("Enrollment failed for student: " + student_email + " in course: " + course_id);
+        }
+    }
 	
 	@RabbitListener(queues = "registration-queue")
 	@Transactional
