@@ -26,52 +26,66 @@ public class StudentController {
 
     // Add a new student
     @PostMapping
-    public ResponseEntity<Student> addStudent(@RequestBody Student student) {
-        // Check if the student's email is unique
-        Student existingStudent = studentRepository.findByEmail(student.getEmail());
-        if (existingStudent != null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+    public ResponseEntity<Student> addStudent(@RequestBody Student student, Principal principal) {
+        // Check if the authenticated user is an admin
+        if (isUserAdmin(principal)) {
+            // Check if the student's email is unique
+            Student existingStudent = studentRepository.findByEmail(student.getEmail());
+            if (existingStudent != null) {
+                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            }
+            Student savedStudent = studentRepository.save(student);
+            return new ResponseEntity<>(savedStudent, HttpStatus.CREATED);
+        } else {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
-        Student savedStudent = studentRepository.save(student);
-        return new ResponseEntity<>(savedStudent, HttpStatus.CREATED);
     }
 
     // Update student information
     @PutMapping("/{id}")
-    public ResponseEntity<Student> updateStudent(
+   public ResponseEntity<Student> updateStudent(
             @PathVariable int id,
-            @RequestBody Student updatedStudent) {
-        Optional<Student> optionalStudent = studentRepository.findById(id);
-        if (optionalStudent.isEmpty()) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            @RequestBody Student updatedStudent, Principal principal) {
+        // Check if the authenticated user is an admin
+        if (isUserAdmin(principal)) {
+            Optional<Student> optionalStudent = studentRepository.findById(id);
+            if (optionalStudent.isEmpty()) {
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+            Student existingStudent = optionalStudent.get();
+
+            // Check if the updated email is unique
+            Student existingStudentByEmail = studentRepository.findByEmail(updatedStudent.getEmail());
+            if (existingStudentByEmail != null && existingStudentByEmail.getStudent_id() != id) {
+                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            }
+
+            // Update student details
+            existingStudent.setName(updatedStudent.getName());
+            existingStudent.setEmail(updatedStudent.getEmail());
+            existingStudent.setStatusCode(updatedStudent.getStatusCode());
+            existingStudent.setStatus(updatedStudent.getStatus());
+
+            Student savedStudent = studentRepository.save(existingStudent);
+            return new ResponseEntity<>(savedStudent, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
-        Student existingStudent = optionalStudent.get();
-
-        // Check if the updated email is unique
-        Student existingStudentByEmail = studentRepository.findByEmail(updatedStudent.getEmail());
-        if (existingStudentByEmail != null && existingStudentByEmail.getStudent_id() != id) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-
-        // Update student details
-        existingStudent.setName(updatedStudent.getName());
-        existingStudent.setEmail(updatedStudent.getEmail());
-        existingStudent.setStatusCode(updatedStudent.getStatusCode());
-        existingStudent.setStatus(updatedStudent.getStatus());
-
-        Student savedStudent = studentRepository.save(existingStudent);
-        return new ResponseEntity<>(savedStudent, HttpStatus.OK);
     }
 
     // Delete a student
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteStudent(@PathVariable int id) {
-        Optional<Student> optionalStudent = studentRepository.findById(id);
-        if (optionalStudent.isEmpty()) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+   public ResponseEntity<Void> deleteStudent(@PathVariable int id, Principal principal) {
+        // Check if the authenticated user is an admin
+        if (isUserAdmin(principal)) {
+            Optional<Student> optionalStudent = studentRepository.findById(id);
+            if (optionalStudent.isEmpty()) {
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+            Student student = optionalStudent.get();
+            studentRepository.delete(student);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } else {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
-        Student student = optionalStudent.get();
-        studentRepository.delete(student);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
-}
